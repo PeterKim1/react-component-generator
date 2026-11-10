@@ -20,7 +20,7 @@ function App() {
     anthropic: false,
     google: false,
   });
-  const { components, isLoading, error, generate, removeComponent, clearAll } =
+  const { components, isLoading, streaming, error, generate, removeComponent, clearAll } =
     useComponentGenerator();
 
   useEffect(() => {
@@ -31,6 +31,9 @@ function App() {
   }, []);
 
   const hasEnvKey = envKeys[provider];
+  const cards = streaming
+    ? [{ ...streaming, createdAt: new Date() }, ...components]
+    : components;
 
   const handleGenerate = (prompt: string) => {
     if (!apiKey.trim() && !hasEnvKey) {
@@ -139,7 +142,7 @@ function App() {
       )}
 
       <section className="results-section">
-        {components.length > 0 && (
+        {(components.length > 0 || streaming) && (
           <div className="results-header">
             <h2>생성된 컴포넌트</h2>
             <button className="btn-clear" onClick={clearAll}>
@@ -163,7 +166,7 @@ function App() {
           </div>
         )}
 
-        {isLoading && (
+        {isLoading && !streaming && (
           <div className="win loading-card" role="status">
             <div className="win-title">
               <span className="win-title-text">생성 중</span>
@@ -178,13 +181,15 @@ function App() {
         )}
 
         <div className="results-grid">
-          {components.map((component) => (
+          {/* 스트리밍 카드와 완료된 카드는 같은 id를 쓰므로 한 리스트로 렌더해 리마운트를 피한다. */}
+          {cards.map((component) => (
             <ComponentCard
               key={component.id}
               component={component}
               onRemove={removeComponent}
               onRegenerate={handleGenerate}
               isLoading={isLoading}
+              isStreaming={component.id === streaming?.id}
             />
           ))}
         </div>
