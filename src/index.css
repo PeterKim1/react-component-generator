@@ -1,0 +1,62 @@
+@font-face {
+  font-family: 'Galmuri11';
+  font-weight: 400;
+  font-display: swap;
+  src: url('../node_modules/galmuri/dist/Galmuri11.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Galmuri11';
+  font-weight: 700;
+  font-display: swap;
+  src: url('../node_modules/galmuri/dist/Galmuri11-Bold.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'GalmuriMono11';
+  font-weight: 400;
+  font-display: swap;
+  src: url('../node_modules/galmuri/dist/GalmuriMono11.woff2') format('woff2');
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+:root {
+  color-scheme: light;
+  font-synthesis: none;
+  -webkit-font-smoothing: none;
+  font-smooth: never;
+  --desk: #2f8481;
+  --desk-dot: #286f6d;
+}
+
+body {
+  font-family: 'Galmuri11', 'Galmuri9', 'Malgun Gothic', monospace;
+  font-size: 14px;
+  background-color: var(--desk);
+  background-image:
+    linear-gradient(45deg, var(--desk-dot) 25%, transparent 25%, transparent 75%, var(--desk-dot) 75%),
+    linear-gradient(45deg, var(--desk-dot) 25%, transparent 25%, transparent 75%, var(--desk-dot) 75%);
+  background-size: 4px 4px;
+  background-position: 0 0, 2px 2px;
+  color: #1b1a17;
+  min-height: 100vh;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+button {
+  -webkit-tap-highlight-color: transparent;
+}
+
+::selection {
+  background: #20206b;
+  color: #ffffff;
+}
