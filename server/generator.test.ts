@@ -1,5 +1,14 @@
 import { describe, it, expect } from 'vitest';
-import { stripCodeFences, ensureRenderCall, createSSEParser, anthropicDelta, googleDelta } from './generator';
+import {
+  stripCodeFences,
+  ensureRenderCall,
+  createSSEParser,
+  anthropicDelta,
+  googleDelta,
+  validateGenerateBody,
+  isAllowedOrigin,
+  MAX_PROMPT_LENGTH,
+} from './generator';
 
 describe('stripCodeFences', () => {
   it('언어 태그가 붙은 코드펜스를 제거한다', () => {
@@ -92,5 +101,60 @@ describe('googleDelta', () => {
   it('finishReason이 MAX_TOKENS면 truncated를 true로 표시한다', () => {
     const data = JSON.stringify({ candidates: [{ content: { parts: [{ text: 'x' }] }, finishReason: 'MAX_TOKENS' }] });
     expect(googleDelta(data)).toEqual({ text: 'x', truncated: true });
+  });
+});
+
+describe('validateGenerateBody', () => {
+  it('올바른 본문은 prompt, apiKey, provider를 돌려준다', () => {
+    expect(validateGenerateBody({ prompt: '버튼', apiKey: 'k', provider: 'google' })).toEqual({
+      ok: true,
+      value: { prompt: '버튼', apiKey: 'k', provider: 'google' },
+    });
+  });
+
+  it('provider가 없으면 anthropic을 기본값으로 쓴다', () => {
+    const result = validateGenerateBody({ prompt: '버튼' });
+    expect(result).toMatchObject({ ok: true, value: { provider: 'anthropic' } });
+  });
+
+  it('객체가 아닌 본문은 거부한다', () => {
+    expect(validateGenerateBody(null)).toMatchObject({ ok: false });
+    expect(validateGenerateBody('x')).toMatchObject({ ok: false });
+  });
+
+  it('허용되지 않은 provider는 거부한다', () => {
+    expect(validateGenerateBody({ prompt: '버튼', provider: 'toString' })).toMatchObject({ ok: false });
+  });
+
+  it('문자열이 아닌 prompt는 거부한다', () => {
+    expect(validateGenerateBody({ prompt: { a: 1 } })).toMatchObject({ ok: false });
+  });
+
+  it('공백뿐인 prompt는 거부한다', () => {
+    expect(validateGenerateBody({ prompt: '   ' })).toMatchObject({ ok: false });
+  });
+
+  it('길이 상한을 넘는 prompt는 거부한다', () => {
+    expect(validateGenerateBody({ prompt: 'a'.repeat(MAX_PROMPT_LENGTH + 1) })).toMatchObject({ ok: false });
+  });
+
+  it('문자열이 아닌 apiKey는 거부한다', () => {
+    expect(validateGenerateBody({ prompt: '버튼', apiKey: 123 })).toMatchObject({ ok: false });
+  });
+});
+
+describe('isAllowedOrigin', () => {
+  it('Origin 헤더가 없으면 허용한다', () => {
+    expect(isAllowedOrigin(null)).toBe(true);
+  });
+
+  it('localhost와 127.0.0.1(포트 무관)은 허용한다', () => {
+    expect(isAllowedOrigin('http://localhost:5173')).toBe(true);
+    expect(isAllowedOrigin('http://127.0.0.1:5174')).toBe(true);
+  });
+
+  it('다른 사이트 origin은 거부한다', () => {
+    expect(isAllowedOrigin('https://evil.example')).toBe(false);
+    expect(isAllowedOrigin('http://localhost.evil.example')).toBe(false);
   });
 });

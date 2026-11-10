@@ -46,6 +46,47 @@ export function createSSEParser(): (chunk: string) => string[] {
   };
 }
 
+export const MAX_PROMPT_LENGTH = 4000;
+
+const PROVIDERS = ['anthropic', 'google'] as const;
+type ValidProvider = (typeof PROVIDERS)[number];
+
+export type ValidatedBody =
+  | { ok: true; value: { prompt: string; apiKey?: string; provider: ValidProvider } }
+  | { ok: false; error: string };
+
+/** 요청 본문을 런타임에서 검증한다. 키 존재 여부(환경변수 폴백)는 호출부에서 판단한다. */
+export function validateGenerateBody(body: unknown): ValidatedBody {
+  if (typeof body !== 'object' || body === null || Array.isArray(body)) {
+    return { ok: false, error: 'Invalid request body' };
+  }
+  const { prompt, apiKey, provider = 'anthropic' } = body as Record<string, unknown>;
+
+  if (typeof provider !== 'string' || !(PROVIDERS as readonly string[]).includes(provider)) {
+    return { ok: false, error: 'Invalid provider' };
+  }
+  if (typeof prompt !== 'string' || !prompt.trim()) {
+    return { ok: false, error: 'Prompt is required' };
+  }
+  if (prompt.length > MAX_PROMPT_LENGTH) {
+    return { ok: false, error: `Prompt must be at most ${MAX_PROMPT_LENGTH} characters` };
+  }
+  if (apiKey !== undefined && typeof apiKey !== 'string') {
+    return { ok: false, error: 'Invalid apiKey' };
+  }
+
+  return { ok: true, value: { prompt, apiKey, provider: provider as ValidProvider } };
+}
+
+/**
+ * 브라우저가 보낸 Origin이 로컬 개발 환경(localhost / 127.0.0.1)인지 확인한다.
+ * Origin이 없는 요청(서버 간 호출, 동일 출처 GET)은 허용한다.
+ */
+export function isAllowedOrigin(origin: string | null): boolean {
+  if (origin === null) return true;
+  return /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin);
+}
+
 export const TRUNCATED_MESSAGE = '생성된 코드가 너무 길어 잘렸습니다. 더 간단한 컴포넌트를 요청해주세요.';
 
 /** Anthropic 스트리밍 이벤트 data에서 텍스트 델타를 꺼낸다. */

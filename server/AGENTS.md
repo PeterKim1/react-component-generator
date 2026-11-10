@@ -29,4 +29,5 @@ Bun 런타임에서 실행되는 AI API 프록시. 프론트엔드는 Vite 프�
 - Do: Google `MAX_TOKENS` 절단은 에러로 처리한다 (`index.ts:123`). 잘린 코드를 정상 응답으로 돌려보내지 않는다.
 - Do: `withModelFallback`은 모두 실패하면 마지막 에러를 던진다 (`fallback.ts:19`). 호출부는 이 에러를 그대로 상태 코드 매핑(`index.ts:194-206`)에 넘긴다.
 - Don't: 서버 응답으로 `ENV_KEYS` 값을 반환하지 않는다 (`index.ts:150-153`은 `!!`로 불리언 변환).
-- Don't: `Access-Control-Allow-Origin: *`(`index.ts:52`)를 유지한 채 인증이 필요한 엔드포인트나 서버 저장 키를 사용하는 기능을 추가하지 않는다. 와일드카드 CORS와 서버 보관 키 조합은 누구나 키를 소비할 수 있게 만든다.
+- Don't: `Access-Control-Allow-Origin: *`를 다시 넣지 않는다. 와일드카드 CORS와 서버 보관 키 조합은 누구나 키를 소비할 수 있게 만든다. 현재는 와일드카드를 두지 않고, `fetch` 진입부에서 `isAllowedOrigin`(`generator.ts`)으로 localhost/127.0.0.1 Origin만 허용한다. 그 외 Origin은 403이다.
+- Do: 요청 본문 검증은 `validateGenerateBody`(`generator.ts`)를 거친다. provider 화이트리스트, prompt 타입·길이(`MAX_PROMPT_LENGTH`), apiKey 타입을 확인하며, 깨진 JSON은 400이다. 새 필드를 받을 때도 이 함수에 추가하고 테스트한다.

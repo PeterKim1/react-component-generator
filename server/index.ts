@@ -4,6 +4,8 @@ import {
   createSSEParser,
   anthropicDelta,
   googleDelta,
+  validateGenerateBody,
+  isAllowedOrigin,
 } from './generator';
 import { withModelFallback } from './fallback';
 
@@ -54,8 +56,9 @@ const GradientButton = () => {
 
 render(<GradientButton />);`;
 
+// 와일드카드 Allow-Origin은 두지 않는다. 브라우저는 Vite 프록시(동일 출처)로 호출하고,
+// 서버는 isAllowedOrigin으로 로컬 개발 Origin만 받는다.
 const CORS_HEADERS = {
-  'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
   'Access-Control-Allow-Headers': 'Content-Type',
 };
@@ -228,24 +231,24 @@ async function streamGoogle(prompt: string, apiKey: string): Promise<AsyncGenera
 async function parseGenerateRequest(
   req: Request,
 ): Promise<{ prompt: string; resolvedKey: string; provider: Provider } | Response> {
-  const { prompt, apiKey, provider = 'anthropic' } = (await req.json()) as {
-    prompt: string;
-    apiKey?: string;
-    provider?: Provider;
-  };
+  let body: unknown;
+  try {
+    body = await req.json();
+  } catch {
+    return Response.json({ error: 'Invalid JSON body' }, { status: 400, headers: CORS_HEADERS });
+  }
+
+  const validated = validateGenerateBody(body);
+  if (!validated.ok) {
+    return Response.json({ error: validated.error }, { status: 400, headers: CORS_HEADERS });
+  }
+  const { prompt, apiKey, provider } = validated.value;
 
   const resolvedKey = resolveApiKey(provider, apiKey);
 
   if (!resolvedKey) {
     return Response.json(
       { error: `API key is required. Set ${provider === 'anthropic' ? 'ANTHROPIC_API_KEY' : 'GOOGLE_API_KEY'} in .env or enter it manually.` },
-      { status: 400, headers: CORS_HEADERS }
-    );
-  }
-
-  if (!prompt) {
-    return Response.json(
-      { error: 'Prompt is required' },
       { status: 400, headers: CORS_HEADERS }
     );
   }
@@ -287,6 +290,11 @@ function streamErrorMessage(err: unknown): string {
 const server = Bun.serve({
   port: 3002,
   async fetch(req) {
+    // 다른 사이트의 페이지가 서버 보관 키로 생성을 호출하지 못하게 Origin을 검사한다.
+    if (!isAllowedOrigin(req.headers.get('origin'))) {
+      return Response.json({ error: 'Forbidden origin' }, { status: 403 });
+    }
+
     if (req.method === 'OPTIONS') {
       return new Response(null, { headers: CORS_HEADERS });
     }
