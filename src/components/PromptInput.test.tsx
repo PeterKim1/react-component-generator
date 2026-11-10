@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { PromptInput } from './PromptInput';
@@ -25,6 +25,60 @@ describe('PromptInput', () => {
   it('로딩 중에는 생성 버튼이 비활성이고 "생성 중..." 을 보여준다', () => {
     render(<PromptInput onGenerate={vi.fn()} isLoading={true} />);
     expect(screen.getByRole('button', { name: '생성 중...' })).toBeDisabled();
+  });
+
+  describe('프롬프트 히스토리', () => {
+    const HISTORY_KEY = 'rcg:prompt-history';
+
+    beforeEach(() => {
+      localStorage.clear();
+    });
+
+    it('생성하면 프롬프트가 localStorage 히스토리에 저장된다', async () => {
+      const user = userEvent.setup();
+      render(<PromptInput onGenerate={vi.fn()} isLoading={false} />);
+
+      await user.type(screen.getByRole('textbox'), '프로필 카드');
+      await user.click(screen.getByRole('button', { name: '컴포넌트 생성' }));
+
+      expect(JSON.parse(localStorage.getItem(HISTORY_KEY) ?? '[]')).toEqual(['프로필 카드']);
+    });
+
+    it('저장된 히스토리를 마운트 시 보여주고 클릭하면 입력창에 채운다', async () => {
+      localStorage.setItem(HISTORY_KEY, JSON.stringify(['지난 프롬프트']));
+      const user = userEvent.setup();
+      render(<PromptInput onGenerate={vi.fn()} isLoading={false} />);
+
+      await user.click(screen.getByRole('button', { name: '지난 프롬프트' }));
+
+      expect(screen.getByRole('textbox')).toHaveValue('지난 프롬프트');
+    });
+
+    it('같은 프롬프트를 다시 생성하면 중복 없이 맨 앞으로 옮긴다', async () => {
+      localStorage.setItem(HISTORY_KEY, JSON.stringify(['B', 'A']));
+      const user = userEvent.setup();
+      render(<PromptInput onGenerate={vi.fn()} isLoading={false} />);
+
+      await user.type(screen.getByRole('textbox'), 'A');
+      await user.click(screen.getByRole('button', { name: '컴포넌트 생성' }));
+
+      expect(JSON.parse(localStorage.getItem(HISTORY_KEY) ?? '[]')).toEqual(['A', 'B']);
+    });
+
+    it('히스토리는 최근 10개까지만 유지한다', async () => {
+      const old = Array.from({ length: 10 }, (_, i) => `old${i}`);
+      localStorage.setItem(HISTORY_KEY, JSON.stringify(old));
+      const user = userEvent.setup();
+      render(<PromptInput onGenerate={vi.fn()} isLoading={false} />);
+
+      await user.type(screen.getByRole('textbox'), 'new');
+      await user.click(screen.getByRole('button', { name: '컴포넌트 생성' }));
+
+      const saved = JSON.parse(localStorage.getItem(HISTORY_KEY) ?? '[]');
+      expect(saved).toHaveLength(10);
+      expect(saved[0]).toBe('new');
+      expect(saved).not.toContain('old9');
+    });
   });
 
   describe('500자 제한', () => {
