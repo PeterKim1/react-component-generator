@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { validatePrompt } from '../utils/validatePrompt';
+import { useLocalStorage } from '../hooks/useLocalStorage';
 
 interface PromptInputProps {
   onGenerate: (prompt: string) => void;
@@ -15,14 +16,20 @@ const EXAMPLES = [
   '테이블 행 상세보기 패널. 선택한 고객의 기본 정보와 최근 활동 표시',
 ];
 
+const HISTORY_KEY = 'rcg:prompt-history';
+const HISTORY_LIMIT = 10;
+
 export function PromptInput({ onGenerate, isLoading }: PromptInputProps) {
   const [prompt, setPrompt] = useState('');
+  const [history, setHistory] = useLocalStorage<string[]>(HISTORY_KEY, []);
   const validation = validatePrompt(prompt);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (prompt.trim() && validation.valid && !isLoading) {
-      onGenerate(prompt.trim());
+      const trimmed = prompt.trim();
+      setHistory((prev) => [trimmed, ...prev.filter((p) => p !== trimmed)].slice(0, HISTORY_LIMIT));
+      onGenerate(trimmed);
     }
   };
 
@@ -65,6 +72,21 @@ export function PromptInput({ onGenerate, isLoading }: PromptInputProps) {
           )}
         </button>
       </form>
+      {history.length > 0 && (
+        <div className="prompt-examples">
+          <span className="examples-label">최근 프롬프트</span>
+          {history.map((item) => (
+            <button
+              key={item}
+              className="example-chip"
+              onClick={() => handleExampleClick(item)}
+              type="button"
+            >
+              {item}
+            </button>
+          ))}
+        </div>
+      )}
       <div className="prompt-examples">
         <span className="examples-label">예시 프롬프트</span>
         {EXAMPLES.map((example) => (

@@ -1,5 +1,6 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import type { GeneratedComponent, Provider } from '../types';
+import { useLocalStorage } from './useLocalStorage';
 
 interface UseComponentGeneratorReturn {
   components: GeneratedComponent[];
@@ -10,8 +11,16 @@ interface UseComponentGeneratorReturn {
   clearAll: () => void;
 }
 
+type StoredComponent = Omit<GeneratedComponent, 'createdAt'> & { createdAt: string };
+
+export const COMPONENTS_STORAGE_KEY = 'rcg:components';
+
 export function useComponentGenerator(): UseComponentGeneratorReturn {
-  const [components, setComponents] = useState<GeneratedComponent[]>([]);
+  const [stored, setStored] = useLocalStorage<StoredComponent[]>(COMPONENTS_STORAGE_KEY, []);
+  const components = useMemo<GeneratedComponent[]>(
+    () => stored.map((c) => ({ ...c, createdAt: new Date(c.createdAt) })),
+    [stored],
+  );
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -32,29 +41,29 @@ export function useComponentGenerator(): UseComponentGeneratorReturn {
         throw new Error(data.error || 'Failed to generate component');
       }
 
-      const newComponent: GeneratedComponent = {
+      const newComponent: StoredComponent = {
         id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
         prompt,
         code: data.code,
-        createdAt: new Date(),
+        createdAt: new Date().toISOString(),
       };
 
-      setComponents((prev) => [newComponent, ...prev]);
+      setStored((prev) => [newComponent, ...prev]);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Unknown error';
       setError(message);
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [setStored]);
 
   const removeComponent = useCallback((id: string) => {
-    setComponents((prev) => prev.filter((c) => c.id !== id));
-  }, []);
+    setStored((prev) => prev.filter((c) => c.id !== id));
+  }, [setStored]);
 
   const clearAll = useCallback(() => {
-    setComponents([]);
-  }, []);
+    setStored([]);
+  }, [setStored]);
 
   return { components, isLoading, error, generate, removeComponent, clearAll };
 }
