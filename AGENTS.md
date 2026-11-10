@@ -17,6 +17,7 @@
 
 - API 키(`ANTHROPIC_API_KEY`, `GOOGLE_API_KEY`)는 서버에서만 읽는다 (`server/index.ts:59-62`). 클라이언트로 키 값을 내려보내지 않는다. `/api/config`는 불리언만 반환한다 (`server/index.ts:147-153`). 이 형태를 유지한다.
 - `.env`는 커밋하지 않는다 (`.gitignore`). 새 환경변수는 `.env.example`에 빈 값으로만 추가한다.
+- 민감 파일(`.env`, `.env.*`(`.env.example` 제외), `*.pem`, `*.key`, `id_rsa*`, `*credential*`, `*secret*`, `.npmrc`, `.netrc`, `.aws/`, `.ssh/`)은 읽지도 수정하지도 않는다. `.claude/settings.json`의 `permissions.deny`가 Read/Edit/Bash로 차단하며, 이 규칙을 우회하는 스크립트(`node -e`, 셸 리다이렉션 등)로 접근하는 것도 금지한다. deny 목록을 바꾸면 이 항목도 함께 갱신한다.
 
 ### Do
 
